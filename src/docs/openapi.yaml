@@ -4,9 +4,7 @@ info:
   version: 1.0.0
   description: REST API for managing library books, reviews, and loans with JWT authentication.
 servers:
-  - url: http://localhost:3000
-    description: Local development
-  - url: https://YOUR-RENDER-URL.onrender.com
+  - url: https://library-management-api-3ucp.onrender.com
     description: Render deployment
 security:
   - bearerAuth: []
