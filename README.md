@@ -2,7 +2,7 @@
 
 Backend Web Development Final Project Phase 2 implementation.
 
-This project intentionally does **not** use the restricted Blog API domain. The domain is a Library Management API with three main CRUD resources:
+This project implements a RESTful API for managing a library system. The API includes authentication, authorization, and full CRUD functionality across multiple related resources.
 
 1. Books
 2. Reviews
@@ -10,14 +10,37 @@ This project intentionally does **not** use the restricted Blog API domain. The 
 
 Users support authentication and authorization but do not count as a main CRUD resource.
 
+Authorization Rules:
+
+- Admin users can create, update, and delete books
+- Regular users can create reviews and loans
+- Users can only modify or delete their own reviews and loans
+
 ## Tech Stack
 
 - Node.js
 - Express
 - PostgreSQL
-- Prisma ORM
+- Prisma ORM for database modeling and data access
 - JWT authentication
 - Swagger UI documentation
+
+## Architecture
+
+This project follows a layered architecture:
+
+- Routes handle HTTP requests
+- Controllers manage request/response logic
+- Services contain business logic
+- Repositories handle database access via Prisma
+
+## Live Deployment
+
+API Base URL:
+https://library-management-api-3ucp.onrender.com/
+
+Swagger Documentation:
+https://library-management-api-3ucp.onrender.com/api-docs/
 
 ## Local Setup
 
@@ -44,7 +67,7 @@ PORT=3000
 4. Run migrations and seed data:
 
 ```bash
-npx prisma migrate deploy
+npx prisma migrate dev
 npm run seed
 ```
 
