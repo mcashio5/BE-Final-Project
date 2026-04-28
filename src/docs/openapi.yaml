@@ -1,0 +1,305 @@
+openapi: 3.0.3
+info:
+  title: Library Management API
+  version: 1.0.0
+  description: REST API for managing library books, reviews, and loans with JWT authentication.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://YOUR-RENDER-URL.onrender.com
+    description: Render deployment
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+    SignupRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email: { type: string, example: newuser@example.com }
+        password: { type: string, example: Password123! }
+        name: { type: string, example: New User }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, example: admin@example.com }
+        password: { type: string, example: Password123! }
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string }
+        user:
+          type: object
+          properties:
+            id: { type: integer }
+            email: { type: string }
+            name: { type: string }
+            role: { type: string, enum: [ADMIN, USER] }
+    Book:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        title: { type: string, example: The Hobbit }
+        author: { type: string, example: J.R.R. Tolkien }
+        isbn: { type: string, example: 9780547928227 }
+        genre: { type: string, example: Fantasy }
+        description: { type: string, example: A fantasy adventure novel. }
+        available: { type: boolean, example: true }
+    BookRequest:
+      type: object
+      required: [title, author, isbn, genre]
+      properties:
+        title: { type: string, example: Clean Code }
+        author: { type: string, example: Robert C. Martin }
+        isbn: { type: string, example: 9780132350884 }
+        genre: { type: string, example: Programming }
+        description: { type: string, example: A book about writing readable code. }
+        available: { type: boolean, example: true }
+    Review:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        bookId: { type: integer, example: 1 }
+        userId: { type: integer, example: 2 }
+        rating: { type: integer, example: 5 }
+        comment: { type: string, example: Excellent book. }
+    ReviewRequest:
+      type: object
+      required: [bookId, rating, comment]
+      properties:
+        bookId: { type: integer, example: 1 }
+        rating: { type: integer, example: 5 }
+        comment: { type: string, example: Excellent book. }
+    ReviewUpdateRequest:
+      type: object
+      properties:
+        rating: { type: integer, example: 4 }
+        comment: { type: string, example: Updated review comment. }
+    Loan:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        bookId: { type: integer, example: 2 }
+        userId: { type: integer, example: 2 }
+        status: { type: string, enum: [ACTIVE, RETURNED], example: ACTIVE }
+        dueDate: { type: string, format: date-time, example: 2026-05-15T00:00:00.000Z }
+    LoanRequest:
+      type: object
+      required: [bookId, dueDate]
+      properties:
+        bookId: { type: integer, example: 2 }
+        dueDate: { type: string, format: date-time, example: 2026-05-15T00:00:00.000Z }
+        userId: { type: integer, example: 2, description: Admin only optional field }
+    LoanUpdateRequest:
+      type: object
+      properties:
+        status: { type: string, enum: [ACTIVE, RETURNED], example: RETURNED }
+        dueDate: { type: string, format: date-time, example: 2026-05-20T00:00:00.000Z }
+paths:
+  /api/auth/signup:
+    post:
+      security: []
+      summary: Create a user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignupRequest' }
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400': { description: Missing or invalid fields, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Email already exists, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/auth/login:
+    post:
+      security: []
+      summary: Login and receive JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { description: Missing credentials, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Invalid login, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/books:
+    post:
+      summary: Create a book. Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookRequest' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } } }
+        '400': { description: Invalid input }
+        '401': { description: Missing token }
+        '403': { description: Admin required }
+        '409': { description: Duplicate ISBN }
+    get:
+      summary: Get all books. Authenticated users.
+      responses:
+        '200': { description: Book list, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Book' } } } } }
+        '401': { description: Missing token }
+  /api/books/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      summary: Get a book by ID. Authenticated users.
+      responses:
+        '200': { description: Book, content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } } }
+        '400': { description: Invalid ID }
+        '401': { description: Missing token }
+        '404': { description: Book not found }
+    put:
+      summary: Update a book. Admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookRequest' }
+      responses:
+        '200': { description: Updated book, content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } } }
+        '400': { description: Invalid input }
+        '401': { description: Missing token }
+        '403': { description: Admin required }
+        '404': { description: Book not found }
+        '409': { description: Duplicate ISBN }
+    delete:
+      summary: Delete a book. Admin only.
+      responses:
+        '200': { description: Deleted book, content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } } }
+        '400': { description: Invalid ID }
+        '401': { description: Missing token }
+        '403': { description: Admin required }
+        '404': { description: Book not found }
+  /api/reviews:
+    post:
+      summary: Create a review for a book. Authenticated users.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewRequest' }
+      responses:
+        '201': { description: Created review, content: { application/json: { schema: { $ref: '#/components/schemas/Review' } } } }
+        '400': { description: Invalid input }
+        '401': { description: Missing token }
+        '404': { description: Book not found }
+    get:
+      summary: Get all reviews. Authenticated users.
+      responses:
+        '200': { description: Review list, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Review' } } } } }
+        '401': { description: Missing token }
+  /api/reviews/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      summary: Get a review by ID. Owner or admin only.
+      responses:
+        '200': { description: Review, content: { application/json: { schema: { $ref: '#/components/schemas/Review' } } } }
+        '400': { description: Invalid ID }
+        '401': { description: Missing token }
+        '403': { description: Not owner/admin }
+        '404': { description: Review not found }
+    put:
+      summary: Update a review. Owner or admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewUpdateRequest' }
+      responses:
+        '200': { description: Updated review, content: { application/json: { schema: { $ref: '#/components/schemas/Review' } } } }
+        '400': { description: Invalid input }
+        '401': { description: Missing token }
+        '403': { description: Not owner/admin }
+        '404': { description: Review not found }
+    delete:
+      summary: Delete a review. Owner or admin only.
+      responses:
+        '200': { description: Deleted review, content: { application/json: { schema: { $ref: '#/components/schemas/Review' } } } }
+        '400': { description: Invalid ID }
+        '401': { description: Missing token }
+        '403': { description: Not owner/admin }
+        '404': { description: Review not found }
+  /api/loans:
+    post:
+      summary: Create a loan. Authenticated users.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoanRequest' }
+      responses:
+        '201': { description: Created loan, content: { application/json: { schema: { $ref: '#/components/schemas/Loan' } } } }
+        '400': { description: Invalid input }
+        '401': { description: Missing token }
+        '404': { description: Book not found }
+        '409': { description: Book unavailable }
+    get:
+      summary: Get loans. Admin sees all, regular users see their own.
+      responses:
+        '200': { description: Loan list, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Loan' } } } } }
+        '401': { description: Missing token }
+  /api/loans/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      summary: Get loan by ID. Owner or admin only.
+      responses:
+        '200': { description: Loan, content: { application/json: { schema: { $ref: '#/components/schemas/Loan' } } } }
+        '400': { description: Invalid ID }
+        '401': { description: Missing token }
+        '403': { description: Not owner/admin }
+        '404': { description: Loan not found }
+    put:
+      summary: Update loan status or due date. Owner or admin only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoanUpdateRequest' }
+      responses:
+        '200': { description: Updated loan, content: { application/json: { schema: { $ref: '#/components/schemas/Loan' } } } }
+        '400': { description: Invalid input }
+        '401': { description: Missing token }
+        '403': { description: Not owner/admin }
+        '404': { description: Loan not found }
+    delete:
+      summary: Delete a loan. Owner or admin only.
+      responses:
+        '200': { description: Deleted loan, content: { application/json: { schema: { $ref: '#/components/schemas/Loan' } } } }
+        '400': { description: Invalid ID }
+        '401': { description: Missing token }
+        '403': { description: Not owner/admin }
+        '404': { description: Loan not found }
